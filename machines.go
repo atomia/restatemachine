@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 )
 
@@ -57,7 +58,14 @@ func initMachines() {
 				os.Exit(1)
 			}
 
-			machineStruct.Usage = "TODO"
+			cmd := exec.Command(machinePath + "/start", "--help")
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Printf("error executing '%s/start --help' to get usage for %s: %s\n", machinePath, machineStruct.Name, err)
+				os.Exit(1)
+			} else {
+				machineStruct.Usage = string(output)
+			}
 
 			globalStateMachines = append(globalStateMachines, machineStruct)
 		}
