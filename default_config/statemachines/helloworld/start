@@ -1,0 +1,47 @@
+#!/bin/sh
+
+. /etc/restatemachine/shell_helpers.inc
+
+if [ x"$1" = x"--help" ]; then
+	cat <<ENDOFUSAGE
+This is an example state machine for showing of the features of restatemachine.
+
+You pass it some text and it will pass it through rot13, wait for 30 seconds,
+pass it through rot13 again and stop.
+
+A state machine consists of a directory with one executable file for each state.
+
+When the state machine reaches a state the executable corresponding to the state
+is executed. It receives its input on STDIN and is supposed to send its output
+on STDOUT. It communicates with restatemachine on STDERR using a simple protocol
+consisting of three lines (without the comments):
+
+nextstate # after current state-executable exits, transition to this state
+101 # wait for this number of seconds after exit before transitioning to nextstate
+Current status message
+
+The states called start and stop are special. When launching an instance of the
+state machine the state-file called start is executed. When a state-executable
+signals a transition to the state called stop, then the machine stops (without
+executing any code, i.e. you don't need an executable called stop, any cleanup
+needed you do in prior states).
+
+Additionally the start executable should accept beeing called with --help as
+the only parameter and show usage instructions when this happens.
+
+For states implemented through shell scripts, you can add
+. /etc/restatemachine/shell_helpers.inc
+
+at the top to get some useful functions, like:
+restatemachine_transition_to "nextstate"
+restatemachine_transition_after_seconds "30"
+restatemachine_status_message "Waiting for something"
+ENDOFUSAGE
+
+	exit 0
+fi
+
+cat
+restatemachine_transition_to "rot13_first"
+restatemachine_transition_after_seconds "0"
+restatemachine_status_message "Starting first rot13"

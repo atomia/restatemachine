@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. /etc/restatemachine/shell_helpers.inc
+
+encoded_text=`tr a-zA-Z n-za-mN-ZA-M`
+
+echo "$encoded_text"
+
+restatemachine_transition_to "stop"
+restatemachine_transition_after_seconds "0"
+restatemachine_status_message "Encoded text two times, value is $encoded_text"

@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. /etc/restatemachine/shell_helpers.inc
+
+encoded_text=`tr a-zA-Z n-za-mN-ZA-M`
+
+echo "$encoded_text"
+
+restatemachine_transition_to "rot13_final"
+restatemachine_transition_after_seconds "30"
+restatemachine_status_message "Encoded text first time, value is $encoded_text"
