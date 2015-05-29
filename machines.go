@@ -71,3 +71,33 @@ func initMachines() {
 		}
 	}
 }
+
+func machineGet(name string) *StateMachine {
+        for _, machine := range globalStateMachines {
+                if machine.Name == name {
+                        return &machine
+                }
+        }
+
+	return nil
+}
+
+
+type ExecuteResponse struct {
+	Id uint64
+	Message string
+}
+
+func machineExecute(name string, input string) (int, string, *ExecuteResponse) {
+	machine := machineGet(name)
+	if machine == nil {
+		return 404, "State machine not found", nil
+	}
+
+	id, err := globalScheduler.ScheduleMachine(name, machine.Path, input)
+	if err != nil {
+		return 500, fmt.Sprintf("Error scheduling execution of %s: %s", name, err), nil
+	} else {
+		return -1, "", &ExecuteResponse{Id: id, Message: fmt.Sprintf("The state machine %s was scheduled for execution successfully.")}
+	}
+}

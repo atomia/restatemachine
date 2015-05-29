@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/boltdb/bolt"
 	"github.com/BurntSushi/toml"
 	"net/http"
 	"fmt"
@@ -14,6 +15,7 @@ type Config struct {
 	TLSCertificateFile string
 	TLSKeyFile string
 	StateMachinePath string
+	DatabasePath string
 }
 
 var globalConfig Config
@@ -24,11 +26,26 @@ func main() {
 		globalConfig.Username = ""
 		globalConfig.ListenOn = ":80"
 		globalConfig.StateMachinePath = "/etc/restatemachine/statemachines"
+		globalConfig.DatabasePath = "/etc/restatemachine/state.db"
 		globalConfig.TLSCertificateFile = ""
-	} else if globalConfig.StateMachinePath == "" {
+	} 
+
+	if globalConfig.StateMachinePath == "" {
 		globalConfig.StateMachinePath = "/etc/restatemachine/statemachines"
 	}
 
+	if globalConfig.DatabasePath == "" {
+		globalConfig.DatabasePath = "/etc/restatemachine/state.db"
+	}
+
+	db, dbErr := bolt.Open(globalConfig.DatabasePath, 0600, nil)
+	if dbErr != nil {
+		fmt.Printf("error opening database %s: %s\n", globalConfig.DatabasePath, dbErr)
+	}
+
+	defer db.Close()
+
+	globalScheduler.Init(db)
 	initMachines()
 	initApi()
 
