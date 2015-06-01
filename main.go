@@ -18,9 +18,15 @@ type Config struct {
 	DatabasePath string
 }
 
+var globalVersionNumber string
 var globalConfig Config
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Printf("restatemachine %s\n", globalVersionNumber)
+		os.Exit(0)
+	}
+
 	if _, err := toml.DecodeFile("/etc/restatemachine/restatemachine.conf", &globalConfig); err != nil {
 		// without or with invalid config file, we use defaults
 		globalConfig.Username = ""

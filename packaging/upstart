@@ -1,0 +1,10 @@
+description "Restatemachine is generic state machine executor available through a RESTful API"
+author "Jimmy Bergman <jimmy@atomia.com>"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+respawn limit 10 60
+
+exec /usr/bin/restatemachine
