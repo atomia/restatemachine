@@ -48,4 +48,5 @@ fi
 $fpm -s dir -t "$package_type" -n restatemachine --config-files /etc/restatemachine/restatemachine.conf -v "$1" --after-install "$postinit" \
 	--description "Restatemachine is generic state machine executor available through a RESTful API" \
 	-m "Atomia AB <info@atomia.com>" --vendor "Atomia AB" --url http://github.com/atomia/restatemachine \
+	--license MIT \
 	./restatemachine=/usr/bin/restatemachine ./default_config/=/etc/restatemachine "$init_script"
