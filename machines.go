@@ -98,6 +98,6 @@ func machineExecute(name string, input string) (int, string, *ExecuteResponse) {
 	if err != nil {
 		return 500, fmt.Sprintf("Error scheduling execution of %s: %s", name, err), nil
 	} else {
-		return -1, "", &ExecuteResponse{Id: id, Message: fmt.Sprintf("The state machine %s was scheduled for execution successfully.")}
+		return -1, "", &ExecuteResponse{Id: id, Message: fmt.Sprintf("The state machine %s was scheduled for execution successfully.", name)}
 	}
 }

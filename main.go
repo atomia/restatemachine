@@ -45,7 +45,9 @@ func main() {
 
 	defer db.Close()
 
-	globalScheduler.Init(db)
+	timerQuitChannel := globalScheduler.Init(db)
+	defer close(timerQuitChannel)
+
 	initMachines()
 	initApi()
 

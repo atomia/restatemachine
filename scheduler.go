@@ -2,10 +2,15 @@ package main
 
 import (
 	"github.com/boltdb/bolt"
+	"bytes"
 	"encoding/json"
-	"os"
-	"sync"
 	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 type RunningMachine struct {
@@ -17,6 +22,7 @@ type RunningMachine struct {
 	NextState string
 	StatusMessage string
 	RunningStateCode bool
+	NextStateRun time.Time
 }
 
 type Scheduler struct {
@@ -64,7 +70,7 @@ func (s *Scheduler) GetMachineRun(id string) (*RunningMachine, error) {
 	}
 }
 
-func (s *Scheduler) ScheduleMachine(name string, path string, input string) (id uint64, returnErr error) {
+func (s *Scheduler) UpdatePersistedMachine(machine *RunningMachine) (id uint64, returnErr error) {
 	returnErr = s.Database.Update(func(tx *bolt.Tx) error {
 		runningBucket := tx.Bucket([]byte("RunningMachines"))
 		runsBucket := tx.Bucket([]byte("MachineRuns"))
@@ -72,13 +78,17 @@ func (s *Scheduler) ScheduleMachine(name string, path string, input string) (id 
 			return fmt.Errorf("error getting database bucket")
 		}
 
-		var seqErr error
-		id, seqErr = runsBucket.NextSequence()
-		if seqErr != nil {
-			return fmt.Errorf("error getting next value in MachineRuns sequence: %s", seqErr)
+		if machine.Id == 0 {
+			var seqErr error
+			id, seqErr = runsBucket.NextSequence()
+			if seqErr != nil {
+				return fmt.Errorf("error getting next value in MachineRuns sequence: %s", seqErr)
+			}
+			machine.Id = id
+		} else {
+			id = machine.Id
 		}
 
-		machine := RunningMachine{Id: id, Name: name, Path: path, Input: input, NextState: "start", RunningStateCode: false}
 		machineJson, err := json.Marshal(machine)
 		if err != nil {
 			return fmt.Errorf("error serializing machine as json for persisting: %s", err)
@@ -95,9 +105,18 @@ func (s *Scheduler) ScheduleMachine(name string, path string, input string) (id 
 			return fmt.Errorf("error persisting machine run: %s", err)
 		}
 
-		s.AddMachine(&machine)
 		return nil
 	});
+
+	return
+}
+
+func (s *Scheduler) ScheduleMachine(name string, path string, input string) (id uint64, returnErr error) {
+	machine := RunningMachine{Id: 0, Name: name, Path: path, Input: input, NextState: "start", RunningStateCode: false, NextStateRun: time.Time{}}
+	id, returnErr = s.UpdatePersistedMachine(&machine)
+	if returnErr == nil {
+		s.AddMachine(&machine)
+	}
 
 	return
 }
@@ -160,11 +179,83 @@ func (s *Scheduler) CancelMachineRun(id string) error {
 	})
 }
 
-func (s *Scheduler) Init(db *bolt.DB) {
+func (s *Scheduler) ExecuteState(machine *RunningMachine) {
+	cmdPath := machine.Path + "/" + machine.NextState
+	cmd := exec.Command(cmdPath)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = strings.NewReader(machine.Input)
+	err := cmd.Run()
+
+	if err != nil {
+		machine.StatusMessage = fmt.Sprintf("error executing state code at %s (will keep retrying): %s", cmdPath, err)
+	} else {
+		stderrStr := string(stderr.Bytes())
+		stderrLines := strings.Split(stderrStr, "\n")
+		if len(stderrLines) < 3 {
+			machine.StatusMessage = fmt.Sprintf("state code at %s didn't return at least 3 lines correctly at stderr (will keep retrying), stderr was: %s",
+				cmdPath, stderrStr)
+		} else {
+			machine.LastState = machine.NextState
+			machine.NextState = strings.TrimSpace(stderrLines[0])
+
+			numSeconds, intConvertError := strconv.Atoi(strings.TrimSpace(stderrLines[1]))
+			if intConvertError != nil || numSeconds <= 0 {
+				machine.NextStateRun = time.Time{}
+			} else {
+				machine.NextStateRun = time.Now().Add(time.Duration(numSeconds) * time.Second)
+			}
+
+			machine.Input = string(stdout.Bytes())
+			machine.StatusMessage = strings.TrimSpace(stderrLines[2])
+		}
+	}
+
+	machine.RunningStateCode = false
+
+	s.UpdatePersistedMachine(machine)
+
+	if machine.NextState == "stop" {
+		s.CancelMachineRun(fmt.Sprintf("%d", machine.Id))
+	}
+}
+
+func (s *Scheduler) HandleTick() {
+	s.SchedulerLock.Lock()
+
+	currentTime := time.Now()
+
+	for idx, machine := range s.RunningMachines {
+		if !machine.RunningStateCode && machine.NextState != "stop" && machine.NextStateRun.Before(currentTime) {
+			var machinePtr *RunningMachine = &(s.RunningMachines[idx])
+			machinePtr.RunningStateCode = true
+			s.UpdatePersistedMachine(machinePtr)
+			go s.ExecuteState(machinePtr)
+		}
+	}
+
+	s.SchedulerLock.Unlock()
+}
+
+func (s *Scheduler) SchedulerTick(ticker *time.Ticker, quitChannel chan struct{}) {
+	for {
+		select {
+			case <- ticker.C:
+				s.HandleTick()
+			case <- quitChannel:
+				ticker.Stop()
+				return
+		}
+	}
+}
+
+func (s *Scheduler) Init(db *bolt.DB) chan struct{} {
 	s.SchedulerLock = &sync.Mutex{}
 	s.Database = db
 	s.RunningMachines = make([]RunningMachine, 0, 0)
 
+	// Initialize database
 	dbInitErr := db.Update(func(tx *bolt.Tx) error {
 		runningBucket, err := tx.CreateBucketIfNotExists([]byte("RunningMachines"))
 		if err != nil {
@@ -198,4 +289,11 @@ func (s *Scheduler) Init(db *bolt.DB) {
 		fmt.Printf("error initializing database: %s\n", dbInitErr)
 		os.Exit(1)
 	}
+
+
+	// Setup the timer that powers the scheduler
+	ticker := time.NewTicker(1 * time.Second)
+	stopSchedulerChannel := make(chan struct{})
+	go s.SchedulerTick(ticker, stopSchedulerChannel)
+	return stopSchedulerChannel
 }
