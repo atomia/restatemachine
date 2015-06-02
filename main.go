@@ -1,21 +1,21 @@
 package main
 
 import (
-	"github.com/boltdb/bolt"
-	"github.com/BurntSushi/toml"
-	"net/http"
 	"fmt"
+	"github.com/BurntSushi/toml"
+	"github.com/boltdb/bolt"
+	"net/http"
 	"os"
 )
 
 type Config struct {
-	Username string
-	Password string
-	ListenOn string
+	Username           string
+	Password           string
+	ListenOn           string
 	TLSCertificateFile string
-	TLSKeyFile string
-	StateMachinePath string
-	DatabasePath string
+	TLSKeyFile         string
+	StateMachinePath   string
+	DatabasePath       string
 }
 
 var globalVersionNumber string
@@ -34,7 +34,7 @@ func main() {
 		globalConfig.StateMachinePath = "/etc/restatemachine/statemachines"
 		globalConfig.DatabasePath = "/etc/restatemachine/state.db"
 		globalConfig.TLSCertificateFile = ""
-	} 
+	}
 
 	if globalConfig.StateMachinePath == "" {
 		globalConfig.StateMachinePath = "/etc/restatemachine/statemachines"

@@ -1,17 +1,17 @@
 package main
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 )
 
 type StateMachine struct {
-	Name string
-	Path string
-	Usage string
+	Name   string
+	Path   string
+	Usage  string
 	States []string
 }
 
@@ -25,7 +25,7 @@ func initMachines() {
 	}
 
 	for _, machine := range machines {
-	
+
 		machinePath := path.Join(globalConfig.StateMachinePath, machine.Name())
 
 		machineInfo, err := os.Stat(machinePath)
@@ -44,7 +44,7 @@ func initMachines() {
 
 			hasStart := false
 			for _, stateInfo := range states {
-				if stateInfo.Mode().Perm() & 0111 > 0 {
+				if stateInfo.Mode().Perm()&0111 > 0 {
 					machineStruct.States = append(machineStruct.States, stateInfo.Name())
 
 					if stateInfo.Name() == "start" {
@@ -58,7 +58,7 @@ func initMachines() {
 				os.Exit(1)
 			}
 
-			cmd := exec.Command(machinePath + "/start", "--help")
+			cmd := exec.Command(machinePath+"/start", "--help")
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				fmt.Printf("error executing '%s/start --help' to get usage for %s: %s\n", machinePath, machineStruct.Name, err)
@@ -73,18 +73,17 @@ func initMachines() {
 }
 
 func machineGet(name string) *StateMachine {
-        for _, machine := range globalStateMachines {
-                if machine.Name == name {
-                        return &machine
-                }
-        }
+	for _, machine := range globalStateMachines {
+		if machine.Name == name {
+			return &machine
+		}
+	}
 
 	return nil
 }
 
-
 type ExecuteResponse struct {
-	Id uint64
+	Id      uint64
 	Message string
 }
 

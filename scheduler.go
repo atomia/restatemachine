@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/boltdb/bolt"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -14,21 +14,21 @@ import (
 )
 
 type RunningMachine struct {
-        Id uint64
-        Name string
-        Path string
-        Input string
-	LastState string
-	NextState string
-	StatusMessage string
+	Id               uint64
+	Name             string
+	Path             string
+	Input            string
+	LastState        string
+	NextState        string
+	StatusMessage    string
 	RunningStateCode bool
-	NextStateRun time.Time
+	NextStateRun     time.Time
 }
 
 type Scheduler struct {
-	SchedulerLock *sync.Mutex
+	SchedulerLock   *sync.Mutex
 	RunningMachines []RunningMachine
-	Database *bolt.DB
+	Database        *bolt.DB
 }
 
 var globalScheduler Scheduler
@@ -106,7 +106,7 @@ func (s *Scheduler) UpdatePersistedMachine(machine *RunningMachine) (id uint64, 
 		}
 
 		return nil
-	});
+	})
 
 	return
 }
@@ -130,7 +130,7 @@ func (s *Scheduler) AddMachine(machine *RunningMachine) {
 func (s *Scheduler) CancelMachineRun(id string) error {
 	return s.Database.Update(func(tx *bolt.Tx) error {
 		s.SchedulerLock.Lock()
-	
+
 		machineIdx := -1
 		var machine RunningMachine
 		var idx int
@@ -149,13 +149,12 @@ func (s *Scheduler) CancelMachineRun(id string) error {
 			s.RunningMachines = append(s.RunningMachines[:machineIdx], s.RunningMachines[machineIdx+1:]...)
 			s.SchedulerLock.Unlock()
 		}
-	
+
 		runningBucket := tx.Bucket([]byte("RunningMachines"))
 		runsBucket := tx.Bucket([]byte("MachineRuns"))
 		if runningBucket == nil || runsBucket == nil {
 			return fmt.Errorf("error getting database bucket")
 		}
-
 
 		err := runningBucket.Delete([]byte(id))
 		if err != nil {
@@ -168,7 +167,7 @@ func (s *Scheduler) CancelMachineRun(id string) error {
 			machine.RunningStateCode = false
 
 			machineJson, jsonErr := json.Marshal(machine)
-			if jsonErr!= nil {
+			if jsonErr != nil {
 				return fmt.Errorf("error serializing machine as json for persisting: %s", err)
 			}
 
@@ -241,11 +240,11 @@ func (s *Scheduler) HandleTick() {
 func (s *Scheduler) SchedulerTick(ticker *time.Ticker, quitChannel chan struct{}) {
 	for {
 		select {
-			case <- ticker.C:
-				s.HandleTick()
-			case <- quitChannel:
-				ticker.Stop()
-				return
+		case <-ticker.C:
+			s.HandleTick()
+		case <-quitChannel:
+			ticker.Stop()
+			return
 		}
 	}
 }
@@ -289,7 +288,6 @@ func (s *Scheduler) Init(db *bolt.DB) chan struct{} {
 		fmt.Printf("error initializing database: %s\n", dbInitErr)
 		os.Exit(1)
 	}
-
 
 	// Setup the timer that powers the scheduler
 	ticker := time.NewTicker(1 * time.Second)

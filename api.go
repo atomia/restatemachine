@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/emicklei/go-restful"
 	"encoding/base64"
+	"github.com/emicklei/go-restful"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -40,8 +40,8 @@ func basicAuthenticate(req *restful.Request, resp *restful.Response, chain *rest
 	if len(auth) != 2 || auth[0] != "Basic" {
 		unAuthorized()
 		return
-        }
- 
+	}
+
 	decoded_auth, _ := base64.StdEncoding.DecodeString(auth[1])
 	credentials := strings.SplitN(string(decoded_auth), ":", 2)
 
@@ -86,7 +86,7 @@ func apiGetRun(req *restful.Request, resp *restful.Response) {
 	id := req.PathParameter("id")
 	machine, err := globalScheduler.GetMachineRun(id)
 	if err != nil {
-		errorResponse(500, "Error retrieving information about state machine run: " + err.Error(), resp)
+		errorResponse(500, "Error retrieving information about state machine run: "+err.Error(), resp)
 	} else {
 		resp.WriteEntity(machine)
 	}
