@@ -1,3 +1,4 @@
 restatemachine
 *.deb
 *.rpm
+gopath
