@@ -26,9 +26,15 @@ fi
 rm -f *.deb *.rpm
 
 distributor=`lsb_release -i | awk '{ print $NF }'`
+codename=`lsb_release -c | awk '{ print $NF }'`
 if [ -z "$distributor" ]; then
 	echo "lsb_release -i failed to give distro identifier"
 	exit 1
+elif [ x"$codename" = x"xenial" ]; then
+        package_type="deb"
+        init_script="./packaging/systemd=/lib/systemd/system/restatemachine.service"
+        postinit="./packaging/systemd_postinit.sh"
+
 elif [ x"$distributor" = x"Ubuntu" -o x"$distributor" = x"Debian" ]; then
         package_type="deb"
 	init_script="./packaging/upstart=/etc/init/restatemachine.conf"

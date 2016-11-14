@@ -1,0 +1,9 @@
+[Unit]
+Description=Restatemachine is generic state machine executor available through a RESTful API
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/restatemachine
+
+[Install]
+WantedBy=multi-user.target

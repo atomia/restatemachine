@@ -1,4 +1,4 @@
-version = 1.0
+version = 1.1
 
 ifndef GOPATH
 	export GOPATH=$(shell pwd)/gopath
