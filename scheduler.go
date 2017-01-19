@@ -27,13 +27,13 @@ type RunningMachine struct {
 
 type Scheduler struct {
 	SchedulerLock   *sync.Mutex
-	RunningMachines []RunningMachine
+	RunningMachines []*RunningMachine
 	Database        *bolt.DB
 }
 
 var globalScheduler Scheduler
 
-func (s *Scheduler) GetRunningMachines() *[]RunningMachine {
+func (s *Scheduler) GetRunningMachines() *[]*RunningMachine {
 	s.SchedulerLock.Lock()
 	runningMachines := s.RunningMachines
 	s.SchedulerLock.Unlock()
@@ -123,7 +123,7 @@ func (s *Scheduler) ScheduleMachine(name string, path string, input string) (id 
 
 func (s *Scheduler) AddMachine(machine *RunningMachine) {
 	s.SchedulerLock.Lock()
-	s.RunningMachines = append(s.RunningMachines, *machine)
+	s.RunningMachines = append(s.RunningMachines, machine)
 	s.SchedulerLock.Unlock()
 }
 
@@ -132,7 +132,7 @@ func (s *Scheduler) CancelMachineRun(id string) error {
 		s.SchedulerLock.Lock()
 
 		machineIdx := -1
-		var machine RunningMachine
+		var machine *RunningMachine
 		var idx int
 		for idx, machine = range s.RunningMachines {
 			if fmt.Sprintf("%d", machine.Id) == id {
@@ -227,7 +227,7 @@ func (s *Scheduler) HandleTick() {
 
 	for idx, machine := range s.RunningMachines {
 		if !machine.RunningStateCode && machine.NextState != "stop" && machine.NextStateRun.Before(currentTime) {
-			var machinePtr *RunningMachine = &(s.RunningMachines[idx])
+			var machinePtr *RunningMachine = s.RunningMachines[idx]
 			machinePtr.RunningStateCode = true
 			s.UpdatePersistedMachine(machinePtr)
 			go s.ExecuteState(machinePtr)
@@ -252,7 +252,7 @@ func (s *Scheduler) SchedulerTick(ticker *time.Ticker, quitChannel chan struct{}
 func (s *Scheduler) Init(db *bolt.DB) chan struct{} {
 	s.SchedulerLock = &sync.Mutex{}
 	s.Database = db
-	s.RunningMachines = make([]RunningMachine, 0, 0)
+	s.RunningMachines = make([]*RunningMachine, 0, 0)
 
 	// Initialize database
 	dbInitErr := db.Update(func(tx *bolt.Tx) error {
